@@ -1,0 +1,244 @@
+<script src="jquery-3.6.1.min.js"></script>
+<form name="form1">
+	<div id="login_cont">
+		<input name="username" placeholder="Username">
+		<input type=password name="password" placeholder="Password">
+		<button type=button onclick="flogin()">Submit</button><br>
+		Login dengan user dummy,<br>
+		Username: <b>test</b><br>
+		Password: <b>test</b>
+	</div>
+	<div>
+		<span id="login_profile"></span>
+		<span id="login_logout"><button type=button onclick="flogout()">Logout</button></span>
+	</div>
+</form>
+
+<div id="product_section">
+	<h2>Product</h2>
+	<button type=button onclick="$('#product_new').toggle()">New Product</button>
+	<div id='product_new' style="display:none">
+		<div style="display:flex">
+			<div style="margin-right:20px">
+				Nama:<br><input name="product_nama"><br>
+				SKU:<br><input name="product_sku"><br>
+				Brand:<br><input name="product_brand"><br>
+				Deskripsi:<br><textarea name="product_deskripsi"></textarea><br>
+			</div>
+			<div>
+				Variasi:<br>
+				<table border=1>
+					<tr>
+						<th>Nama</th>
+						<th>SKU</th>
+						<th>Harga Jual</th>
+					</tr>
+					<tr>
+						<td><input class="varian_nama"></td>
+						<td><input class="varian_sku"></td>
+						<td><input class="varian_harga"></td>
+					</tr>
+					<tr>
+						<td><input class="varian_nama"></td>
+						<td><input class="varian_sku"></td>
+						<td><input class="varian_harga"></td>
+					</tr>
+					<tr>
+						<td><input class="varian_nama"></td>
+						<td><input class="varian_sku"></td>
+						<td><input class="varian_harga"></td>
+					</tr>
+					<tr>
+						<td><input class="varian_nama"></td>
+						<td><input class="varian_sku"></td>
+						<td><input class="varian_harga"></td>
+					</tr>
+					<tr>
+						<td><input class="varian_nama"></td>
+						<td><input class="varian_sku"></td>
+						<td><input class="varian_harga"></td>
+					</tr>
+				</table><br>
+			</div>
+		</div>
+		<button type=button onclick="fproduct_new()">Submit Product</button><br><br>
+	</div><br><br>
+	<table width=100% border=1>
+		<tr>
+			<th>Name</th>
+			<th>SKU</th>
+			<th>Brand</th>
+			<th>Deskripsi</th>
+			<th>Variasi</th>
+			<th>Harga</th>
+			<th></th>
+		</tr>
+		<tbody id="list">
+		</tbody>
+	</table>
+</div>
+<script>
+if(localStorage.getItem('session_token')){
+	$('#login_cont').css('display','none');
+	$('#login_logout').css('display','');
+	$('#login_profile').html("Anda login sebagai: <b>"+localStorage.getItem('session_name')+"</b>");
+}else{
+	$('#login_logout').css('display','none');
+}
+function flogout(){
+	localStorage.clear();
+	document.location.reload();
+}
+function flogin(){
+	$.ajax({
+		type: "POST",
+		url: "api_login.php",
+		data: {
+			'username':$('[name=username]').val(),
+			'password':$('[name=password]').val()
+		},
+		dataType: "json",
+		success: function(r){
+			if(r && r['status']==true){
+				localStorage.setItem('session_token',r['session']['token']);
+				localStorage.setItem('session_name',r['session']['fullname']);
+				$('#login_cont').css('display','none');
+				$('#login_logout').css('display','');
+				$('#login_profile').html("Anda login sebagai: <b>"+r['session']['fullname']+"</b>");
+				alert("Login berhasil");
+				document.location.reload();
+			}else{
+				alert(r['errmsg']);
+			}
+		},
+		error: function(e){
+			alert('Error occured while communicating with server');
+		}
+	});
+}
+
+//fetch product data here
+$.ajax({
+	type: "POST",
+	url: "api_product.php",
+	headers: {
+		'Authorization': 'Bearer '+localStorage.getItem('session_token')
+	},
+	data: {},
+	dataType: "json",
+	success: function(r){
+		if(r && r['status']==true){
+			rebuild_product(r);
+		}else{
+			$('#product_section').css('display','none');
+			alert(r['errmsg']);
+		}
+	},
+	error: function(e){
+		alert('Error occured while communicating with server');
+	}
+});
+function rebuild_product(data){
+	var html="";
+	if(data['product']){
+		row=data['product'];
+		for(var i in row){
+			html+="<tr>";
+				html+="<td>"+row[i]['nama']+"</td>";
+				html+="<td>"+row[i]['sku']+"</td>";
+				html+="<td>"+row[i]['brand']+"</td>";
+				html+="<td>"+nl2br(row[i]['deskripsi'])+"</td>";
+				html+="<td></td>";
+				html+="<td align=right></td>";
+				html+="<td align=center><button type=button onclick=fdelete(unescape('"+escape(JSON.stringify(row[i]))+"'))>Delete</button></td>";
+			html+="</tr>";
+			row2=row[i]['variasi'];
+			for(var j in row2){
+				html+="<tr valign=top>";
+					html+="<td></td>";
+					html+="<td></td>";
+					html+="<td></td>";
+					html+="<td></td>";
+					html+="<td>"+row2[j]['nama']+" - "+row2[j]['sku']+"</td>";
+					html+="<td align=right>"+row2[j]['harga_jual']+"</td>";
+				html+="</tr>";
+			}
+		}
+	}
+	$('#list').html(html);
+}
+
+function fdelete(data){
+	data=JSON.parse(data);
+	if(data['sku']=="P001" || data['sku']=="P002"){
+		alert("Produk Utama tidak bisa dihapus");
+		return;
+	}
+	var q=confirm("Delete item ini?");
+	if(q==true){
+		$.ajax({
+			type: "POST",
+			url: "api_product_delete.php",
+			headers: {
+				'Authorization': 'Bearer '+localStorage.getItem('session_token')
+			},
+			data: {
+				'id':data['sku']
+			},
+			dataType: "json",
+			success: function(r){
+				if(r && r['status']==true){
+					alert('Product berhasil dihapus');
+					document.location.reload();
+				}else{
+					alert(r['errmsg']);
+				}
+			},
+			error: function(e){
+				alert('Error occured while communicating with server');
+			}
+		});
+	}
+}
+
+function fproduct_new(){
+	$.ajax({
+		type: "POST",
+		url: "api_product_save.php",
+		headers: {
+			'Authorization': 'Bearer '+localStorage.getItem('session_token')
+		},
+		data: {
+			'product_nama':$('[name=product_nama]').val(),
+			'product_sku':$('[name=product_sku]').val(),
+			'product_brand':$('[name=product_brand]').val(),
+			'product_deskripsi':$('[name=product_deskripsi]').val(),
+			'varian_nama':$('.varian_nama').map(function() {
+				return $(this).val();
+			}).get().join(','),
+			'varian_sku':$('.varian_sku').map(function() {
+				return $(this).val();
+			}).get().join(','),
+			'varian_harga':$('.varian_harga').map(function() {
+				return $(this).val();
+			}).get().join(','),
+		},
+		dataType: "json",
+		success: function(r){
+			if(r && r['status']==true){
+				alert('Product berhasil ditambahkan');
+				document.location.reload();
+			}else{
+				alert(r['errmsg']);
+			}
+		},
+		error: function(e){
+			alert('Error occured while communicating with server');
+		}
+	});
+}
+function nl2br (str, is_xhtml) {   
+	var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';    
+	return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1'+ breakTag +'$2');
+}
+</script>
