@@ -1,0 +1,3 @@
+- Progam harus diletakkan di document root server PHP Apache
+- Akses melalui browser ke: http://localhost/jwt_api/product.htm (tidak dapat diakses langsung ke file product.htm nya tanpa server PHP)
+- Login menggunakan user test yang diberikan
